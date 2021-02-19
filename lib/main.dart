@@ -1,4 +1,6 @@
 // @dart=2.9
+import 'package:fhir_flutter_demo/hf_instrument.dart';
+import 'package:fhir_flutter_demo/prapare_instrument.dart';
 import 'package:fhir_flutter_demo/survey_page.dart';
 import 'package:flutter/material.dart';
 
@@ -35,10 +37,21 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: ElevatedButton(
-          onPressed: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (context) => SurveyPage())),
-          child: Text('Launch survey'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => SurveyPage(HFInstrument.hfInstrument))),
+              child: Text('Launch HF survey'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) =>
+                      SurveyPage(PrapareInstrument.prapareInstrument))),
+              child: Text('Launch Prapare survey'),
+            ),
+          ],
         ),
       ),
     );

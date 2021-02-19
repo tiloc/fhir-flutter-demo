@@ -1,11 +1,14 @@
 import 'dart:convert';
 
-import 'package:fhir_flutter_demo/hf_instrument.dart';
 import 'package:fhir_flutter_demo/widgets/rp_fhir_questionnaire.dart';
 import 'package:flutter/material.dart';
 import 'package:research_package/research_package.dart';
 
 class SurveyPage extends StatelessWidget {
+  final instrument;
+
+  SurveyPage(this.instrument);
+
   String _encode(Object object) =>
       const JsonEncoder.withIndent(' ').convert(object);
 
@@ -31,7 +34,7 @@ class SurveyPage extends StatelessWidget {
           textTheme: Typography.blackMountainView,
         ),
         child: RPUITask(
-          task: RPFhirQuestionnaire().surveyTask(HFInstrument.hfInstrument),
+          task: RPFhirQuestionnaire().surveyTask(instrument),
           onSubmit: (result) {
             _resultCallback(result);
           },
