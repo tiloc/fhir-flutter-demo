@@ -62,7 +62,7 @@ class RPFhirQuestionnaire {
         steps.add(RPQuestionStep.withAnswerFormat(item.linkId, _getText(item),
             RPIntegerAnswerFormat.withParams(0, 999999),
             optional:
-                optional)); // TODO: surveys are using "Decimal" when they are clearly expecting integers.
+                optional)); // Unfortunately, surveys are using "Decimal" when they are clearly expecting integers.
         break;
       default:
         print('Unsupported question item type: ${item.type.toString()}');
@@ -106,21 +106,48 @@ class RPFhirQuestionnaire {
     return toplevelSteps;
   }
 
-  QuestionnaireResponseItem _fromGroupItem(QuestionnaireItem item) {
+  QuestionnaireResponseItem _fromGroupItem(
+      QuestionnaireItem item, RPTaskResult result) {
     final nestedItems = <QuestionnaireResponseItem>[];
     item.item.forEach((nestedItem) {
       if (nestedItem.type == QuestionnaireItemType.group) {
-        nestedItems.add(_fromGroupItem(nestedItem));
+        nestedItems.add(_fromGroupItem(nestedItem, result));
       } else {
-        nestedItems.add(_fromQuestionItem(nestedItem));
+        final responseItem = _fromQuestionItem(nestedItem, result);
+        if (responseItem != null) nestedItems.add(responseItem);
       }
     });
-    return QuestionnaireResponseItem(linkId: item.linkId, item: nestedItems);
+    return QuestionnaireResponseItem(
+        linkId: item.linkId, text: item.text, item: nestedItems);
   }
 
-  QuestionnaireResponseItem _fromQuestionItem(QuestionnaireItem item) {
-    // TODO: Create responseitems from answers...
-    return QuestionnaireResponseItem(linkId: item.linkId);
+  QuestionnaireResponseItem? _fromQuestionItem(
+      QuestionnaireItem item, RPTaskResult result) {
+    // TODO: Support more response types
+    final RPStepResult? resultStep = result.results[item.linkId];
+    if (resultStep == null) {
+      print('No result found for linkId ${item.linkId}');
+      return null;
+    }
+    final resultForIdentifier = resultStep.getResultForIdentifier('answer');
+    if (resultForIdentifier == null) {
+      print('No answer for ${item.linkId}');
+      return QuestionnaireResponseItem(
+          linkId: item.linkId, text: resultStep.questionTitle, answer: []);
+    }
+    switch (item.type) {
+      case QuestionnaireItemType.choice:
+        final rpChoice = (resultForIdentifier as List<RPChoice>).first;
+        return QuestionnaireResponseItem(
+            linkId: item.linkId,
+            text: resultStep.questionTitle,
+            answer: [
+              QuestionnaireResponseAnswer(valueString: rpChoice.text)
+            ]); // TODO: Use Coding?
+      default:
+        print('${item.type} not supported');
+        return QuestionnaireResponseItem(linkId: item.linkId);
+    }
   }
 
   QuestionnaireResponse fhirQuestionnaireResponse(
@@ -130,9 +157,10 @@ class RPFhirQuestionnaire {
 
     _questionnaire.item.forEach((item) {
       if (item.type == QuestionnaireItemType.group) {
-        questionnaireResponse.item.add(_fromGroupItem(item));
+        questionnaireResponse.item.add(_fromGroupItem(item, result));
       } else {
-        questionnaireResponse.item.add(_fromQuestionItem(item));
+        final responseItem = _fromQuestionItem(item, result);
+        if (responseItem != null) questionnaireResponse.item.add(responseItem);
       }
     });
 
