@@ -8,12 +8,32 @@ class RPFhirQuestionnaire {
     return item.textElement?.extension_[0].valueString ?? item.text;
   }
 
-  RPAnswerFormat _buildAnswers(QuestionnaireItem element) {
+  late final Questionnaire _questionnaire;
+
+  RPAnswerFormat _buildChoiceAnswers(QuestionnaireItem element) {
     var choices = <RPChoice>[];
-    var i = 0;
-    element.answerOption?.forEach((choice) {
-      choices.add(RPChoice.withParams(choice.valueCoding.display, i++));
-    });
+
+    if (element.answerValueSet != null) {
+      final key =
+          element.answerValueSet.value.substring(1); // Strip off leading '#'
+      var i = 0;
+      (_questionnaire.contained
+                  .firstWhere((element) => (element.id.toString() == key))
+              as ValueSet)
+          .compose
+          .include
+          .first
+          .concept
+          .forEach((element) {
+        choices.add(RPChoice.withParams(element.display, i++));
+      });
+    } else {
+      var i =
+          0; // TODO: Don't forget to put the real values back into the response...
+      element.answerOption?.forEach((choice) {
+        choices.add(RPChoice.withParams(choice.valueCoding.display, i++));
+      });
+    }
 
     return RPChoiceAnswerFormat.withParams(
         ChoiceAnswerStyle.SingleChoice, choices);
@@ -22,10 +42,27 @@ class RPFhirQuestionnaire {
   List<RPQuestionStep> _buildQuestionSteps(QuestionnaireItem item, int level) {
     final steps = <RPQuestionStep>[];
 
+    final optional = !(item.required_?.value ?? true);
+
     switch (item.type) {
       case QuestionnaireItemType.choice:
         steps.add(RPQuestionStep.withAnswerFormat(
-            item.linkId, _getText(item), _buildAnswers(item)));
+            item.linkId, _getText(item), _buildChoiceAnswers(item),
+            optional: optional));
+        break;
+      case QuestionnaireItemType.string:
+        steps.add(RPQuestionStep.withAnswerFormat(
+            item.linkId,
+            _getText(item),
+            RPChoiceAnswerFormat.withParams(ChoiceAnswerStyle.SingleChoice,
+                [RPChoice.withParams(_getText(item), 0, true)]),
+            optional: optional));
+        break;
+      case QuestionnaireItemType.decimal:
+        steps.add(RPQuestionStep.withAnswerFormat(item.linkId, _getText(item),
+            RPIntegerAnswerFormat.withParams(0, 999999),
+            optional:
+                optional)); // TODO: surveys are using "Decimal" when they are clearly expecting integers.
         break;
       default:
         print('Unsupported question item type: ${item.type.toString()}');
@@ -42,7 +79,7 @@ class RPFhirQuestionnaire {
           identifier: item.linkId,
           detailText:
               'Please fill out this survey.\n\nIn this survey the questions will come after each other in a given order. You still have the chance to skip some of them, though.',
-          title: item.code.first.display,
+          title: item.code?.first?.display,
         )..text = item.text);
 
         item.item.forEach((groupItem) {
@@ -50,6 +87,8 @@ class RPFhirQuestionnaire {
         });
         break;
       case QuestionnaireItemType.choice:
+      case QuestionnaireItemType.string:
+      case QuestionnaireItemType.decimal:
         steps.addAll(_buildQuestionSteps(item, level));
         break;
       default:
@@ -59,11 +98,10 @@ class RPFhirQuestionnaire {
   }
 
   List<RPStep> fhirQuestionnaire(String jsonFhirQuestionnaire) {
-    final fhirQuestionnaire =
-        Questionnaire.fromJson(json.decode(jsonFhirQuestionnaire));
+    _questionnaire = Questionnaire.fromJson(json.decode(jsonFhirQuestionnaire));
 
     final toplevelSteps = <RPStep>[];
-    fhirQuestionnaire.item.forEach((item) {
+    _questionnaire.item.forEach((item) {
       toplevelSteps.addAll(_buildSteps(item, 0));
     });
 

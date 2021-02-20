@@ -1,8 +1,11 @@
 // @dart=2.9
 import 'package:fhir_flutter_demo/hf_instrument.dart';
+import 'package:fhir_flutter_demo/phq9_instrument.dart';
 import 'package:fhir_flutter_demo/prapare_instrument.dart';
 import 'package:fhir_flutter_demo/survey_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:research_package/ui.dart';
 
 void main() {
   runApp(MyApp());
@@ -13,6 +16,20 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      supportedLocales: [
+        Locale('en'),
+        Locale('da'),
+      ],
+      localizationsDelegates: [
+        // A class which loads the translations from JSON files
+        RPLocalizations.delegate,
+        // Built-in localization of basic text for Cupertino widgets
+        GlobalCupertinoLocalizations.delegate,
+        // Built-in localization of basic text for Material widgets
+        GlobalMaterialLocalizations.delegate,
+        // Built-in localization for text direction LTR/RTL
+        GlobalWidgetsLocalizations.delegate,
+      ],
       debugShowCheckedModeBanner: false,
       title: 'FHIR Questionnaire Demo',
       theme: ThemeData(
@@ -40,6 +57,12 @@ class HomePage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) =>
+                      SurveyPage(Phq9Instrument.phq9Instrument))),
+              child: Text('Launch PHQ9 survey'),
+            ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) => SurveyPage(HFInstrument.hfInstrument))),
