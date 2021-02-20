@@ -27,7 +27,12 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  fhir: ^0.2.4
+  fhir:
+    git:
+      url: https://github.com/MayJuun/fhir.git
+      ref: null-safety
+      path: fhir
+
   research_package:
     git:
       url: https://github.com/tiloc/research.package.git
@@ -36,6 +41,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+dependency_overrides:
+  json_annotation: ^4.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

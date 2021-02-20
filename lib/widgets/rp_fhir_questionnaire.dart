@@ -3,9 +3,26 @@ import 'dart:convert';
 import 'package:fhir/r4/r4.dart';
 import 'package:research_package/model.dart';
 
+import '../extensions/safe_access_extensions.dart';
+
+class DataFormatException implements Exception {
+  /// A human-readable message
+  final String message;
+
+  /// The offending data element
+  final dynamic element;
+
+  /// A throwable
+  final dynamic? cause;
+  DataFormatException(this.message, this.element, [this.cause]);
+}
+
 class RPFhirQuestionnaire {
   String _getText(QuestionnaireItem item) {
-    return item.textElement?.extension_[0].valueString ?? item.text;
+    return item.textElement?.extension_?.elementAt(0).valueString ??
+        item.text ??
+        item.linkId ??
+        item.toString();
   }
 
   final Questionnaire _questionnaire;
@@ -14,24 +31,31 @@ class RPFhirQuestionnaire {
     var choices = <RPChoice>[];
 
     if (element.answerValueSet != null) {
-      final key =
-          element.answerValueSet.value.substring(1); // Strip off leading '#'
+      final key = element.answerValueSet!.value!
+          .toString()
+          .substring(1); // Strip off leading '#'
       var i = 0;
-      (_questionnaire.contained
-                  .firstWhere((element) => (element.id.toString() == key))
-              as ValueSet)
-          .compose
-          .include
-          .first
-          .concept
-          .forEach((element) {
+      final List<ValueSetConcept>? valueSetConcepts = (_questionnaire.contained
+              ?.firstWhere((element) => (key == element?.id?.toString()),
+                  orElse: () => null) as ValueSet?)
+          ?.compose
+          ?.include
+          ?.firstOrNull
+          ?.concept;
+
+      if (valueSetConcepts == null)
+        throw DataFormatException(
+            'Questionnaire does not contain referenced ValueSet $key',
+            _questionnaire);
+
+      valueSetConcepts.forEach((element) {
         choices.add(RPChoice.withParams(element.display, i++));
       });
     } else {
       var i =
           0; // TODO: Don't forget to put the real values back into the response...
       element.answerOption?.forEach((choice) {
-        choices.add(RPChoice.withParams(choice.valueCoding.display, i++));
+        choices.add(RPChoice.withParams(choice.safeDisplay, i++));
       });
     }
 
@@ -79,10 +103,10 @@ class RPFhirQuestionnaire {
           identifier: item.linkId,
           detailText:
               'Please fill out this survey.\n\nIn this survey the questions will come after each other in a given order. You still have the chance to skip some of them, though.',
-          title: item.code?.first?.display,
+          title: item.code?.safeDisplay,
         )..text = item.text);
 
-        item.item.forEach((groupItem) {
+        item.item!.forEach((groupItem) {
           steps.addAll(_buildSteps(groupItem, level + 1));
         });
         break;
@@ -99,7 +123,7 @@ class RPFhirQuestionnaire {
 
   List<RPStep> _rpStepsFromFhirQuestionnaire() {
     final toplevelSteps = <RPStep>[];
-    _questionnaire.item.forEach((item) {
+    _questionnaire.item!.forEach((item) {
       toplevelSteps.addAll(_buildSteps(item, 0));
     });
 
@@ -109,7 +133,7 @@ class RPFhirQuestionnaire {
   QuestionnaireResponseItem _fromGroupItem(
       QuestionnaireItem item, RPTaskResult result) {
     final nestedItems = <QuestionnaireResponseItem>[];
-    item.item.forEach((nestedItem) {
+    item.item!.forEach((nestedItem) {
       if (nestedItem.type == QuestionnaireItemType.group) {
         nestedItems.add(_fromGroupItem(nestedItem, result));
       } else {
@@ -155,12 +179,14 @@ class RPFhirQuestionnaire {
     final questionnaireResponse = QuestionnaireResponse(
         status: status, item: <QuestionnaireResponseItem>[]);
 
-    _questionnaire.item.forEach((item) {
+    if (_questionnaire.item == null) return questionnaireResponse;
+
+    _questionnaire.item!.forEach((item) {
       if (item.type == QuestionnaireItemType.group) {
-        questionnaireResponse.item.add(_fromGroupItem(item, result));
+        questionnaireResponse.item!.add(_fromGroupItem(item, result));
       } else {
         final responseItem = _fromQuestionItem(item, result);
-        if (responseItem != null) questionnaireResponse.item.add(responseItem);
+        if (responseItem != null) questionnaireResponse.item!.add(responseItem);
       }
     });
 
