@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:fhir/r4/r4.dart';
+import 'package:fhir/r4.dart';
 import 'package:research_package/model.dart';
 
 import '../extensions/safe_access_extensions.dart';
@@ -168,6 +168,20 @@ class RPFhirQuestionnaire {
             answer: [
               QuestionnaireResponseAnswer(valueString: rpChoice.text)
             ]); // TODO: Use Coding?
+      case QuestionnaireItemType.decimal:
+        return QuestionnaireResponseItem(
+            linkId: item.linkId,
+            text: resultStep.questionTitle,
+            answer: [
+              QuestionnaireResponseAnswer(
+                  valueDecimal: Decimal(resultForIdentifier as String))
+            ]);
+      case QuestionnaireItemType.string:
+        final rpChoice = (resultForIdentifier as List<RPChoice>).first;
+        return QuestionnaireResponseItem(
+            linkId: item.linkId,
+            text: resultStep.questionTitle,
+            answer: [QuestionnaireResponseAnswer(valueString: rpChoice.text)]);
       default:
         print('${item.type} not supported');
         return QuestionnaireResponseItem(linkId: item.linkId);
