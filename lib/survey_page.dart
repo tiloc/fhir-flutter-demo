@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:fhir/r4.dart';
+import 'package:fhir_flutter_demo/response_state.dart';
 import 'package:fhir_flutter_demo/widgets/rp_fhir_questionnaire.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:research_package/research_package.dart';
 
 class SurveyPage extends StatelessWidget {
@@ -15,11 +17,13 @@ class SurveyPage extends StatelessWidget {
   String _encode(Object object) =>
       const JsonEncoder.withIndent(' ').convert(object);
 
-  void _resultCallback(RPTaskResult result) {
+  void _resultCallback(RPTaskResult result, BuildContext context) {
     // Do anything with the result
     print(_encode(result));
-    print(_questionnaire.fhirQuestionnaireResponse(
-        result, QuestionnaireResponseStatus.completed));
+    final response = _questionnaire.fhirQuestionnaireResponse(
+        result, QuestionnaireResponseStatus.completed);
+    print(response);
+    Provider.of<ResponseModel>(context, listen: false).setResponse(response);
   }
 
   void _cancelledCallback(RPTaskResult result) {
@@ -41,7 +45,7 @@ class SurveyPage extends StatelessWidget {
         child: RPUITask(
           task: _questionnaire.surveyTask(),
           onSubmit: (result) {
-            _resultCallback(result);
+            _resultCallback(result, context);
           },
           // No onCancel
           // If there's no onCancel provided the survey just quits

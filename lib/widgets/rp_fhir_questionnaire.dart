@@ -188,12 +188,53 @@ class RPFhirQuestionnaire {
     }
   }
 
+  void _addResponseItemToDiv(
+      StringBuffer div, QuestionnaireResponseItem item, int level) {
+    if (item.text != null) {
+      div.write('<h${level + 2}>${item.text}</h${level + 2}>');
+    }
+
+    if (item.answer != null) {
+      item.answer!.forEach((answer) {
+        if (answer.valueString != null) {
+          div.write('<p>${answer.valueString}</p>');
+        } else if (answer.valueDecimal != null) {
+          div.write('<p>${answer.valueDecimal.toString()}</p>');
+        } else {
+          print('Narrative generation not fully supported');
+          div.write('<p>${answer.toString()}</p>');
+        }
+      });
+    }
+
+    if (item.item != null) {
+      item.item!.forEach((nestedItem) {
+        _addResponseItemToDiv(div, nestedItem, level + 1);
+      });
+    }
+  }
+
+  Narrative _generateNarrative(QuestionnaireResponse questionnaireResponse) {
+    final div = StringBuffer('<div xmlns="http://www.w3.org/1999/xhtml">');
+    questionnaireResponse.item!.forEach((item) {
+      _addResponseItemToDiv(div, item, 0);
+    });
+    div.write('</div>');
+    return new Narrative(
+        div: div.toString(), status: NarrativeStatus.generated);
+  }
+
   QuestionnaireResponse fhirQuestionnaireResponse(
       RPTaskResult result, QuestionnaireResponseStatus status) {
     final questionnaireResponse = QuestionnaireResponse(
-        status: status, item: <QuestionnaireResponseItem>[]);
+      status: status,
+      item: <QuestionnaireResponseItem>[],
+      authored: FhirDateTime(DateTime.now()),
+    );
 
-    if (_questionnaire.item == null) return questionnaireResponse;
+    if (_questionnaire.item == null)
+      return questionnaireResponse.copyWith(
+          text: _generateNarrative(questionnaireResponse));
 
     _questionnaire.item!.forEach((item) {
       if (item.type == QuestionnaireItemType.group) {
@@ -204,7 +245,8 @@ class RPFhirQuestionnaire {
       }
     });
 
-    return questionnaireResponse;
+    return questionnaireResponse.copyWith(
+        text: _generateNarrative(questionnaireResponse));
   }
 
   RPCompletionStep completionStep() {

@@ -2,13 +2,17 @@
 import 'package:fhir_flutter_demo/hf_instrument.dart';
 import 'package:fhir_flutter_demo/phq9_instrument.dart';
 import 'package:fhir_flutter_demo/prapare_instrument.dart';
+import 'package:fhir_flutter_demo/response_state.dart';
 import 'package:fhir_flutter_demo/survey_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 import 'package:research_package/ui.dart';
+import 'package:simple_html_css/simple_html_css.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(ChangeNotifierProvider(
+      create: (context) => ResponseModel(), child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -53,30 +57,51 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) =>
-                      SurveyPage(Phq9Instrument.phq9Instrument))),
-              child: Text('Launch PHQ9 survey'),
+        body: SafeArea(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) =>
+                        SurveyPage(Phq9Instrument.phq9Instrument))),
+                child: Text('Launch PHQ9 survey'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) =>
+                        SurveyPage(HFInstrument.hfInstrument))),
+                child: Text('Launch HF survey'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) =>
+                        SurveyPage(PrapareInstrument.prapareInstrument))),
+                child: Text('Launch PRAPARE survey'),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Card(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: Consumer<ResponseModel>(
+                  builder: (context, response, child) {
+                    if (response.response == null) {
+                      return Text('No response yet');
+                    } else {
+                      return HTML.toRichText(
+                          context, response.response.text.div);
+                    }
+                  },
+                ),
+              ),
             ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => SurveyPage(HFInstrument.hfInstrument))),
-              child: Text('Launch HF survey'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) =>
-                      SurveyPage(PrapareInstrument.prapareInstrument))),
-              child: Text('Launch Prapare survey'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
+    ));
   }
 }
