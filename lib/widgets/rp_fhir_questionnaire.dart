@@ -8,7 +8,7 @@ class RPFhirQuestionnaire {
     return item.textElement?.extension_[0].valueString ?? item.text;
   }
 
-  late final Questionnaire _questionnaire;
+  final Questionnaire _questionnaire;
 
   RPAnswerFormat _buildChoiceAnswers(QuestionnaireItem element) {
     var choices = <RPChoice>[];
@@ -97,9 +97,7 @@ class RPFhirQuestionnaire {
     return steps;
   }
 
-  List<RPStep> fhirQuestionnaire(String jsonFhirQuestionnaire) {
-    _questionnaire = Questionnaire.fromJson(json.decode(jsonFhirQuestionnaire));
-
+  List<RPStep> _rpStepsFromFhirQuestionnaire() {
     final toplevelSteps = <RPStep>[];
     _questionnaire.item.forEach((item) {
       toplevelSteps.addAll(_buildSteps(item, 0));
@@ -108,16 +106,53 @@ class RPFhirQuestionnaire {
     return toplevelSteps;
   }
 
+  QuestionnaireResponseItem _fromGroupItem(QuestionnaireItem item) {
+    final nestedItems = <QuestionnaireResponseItem>[];
+    item.item.forEach((nestedItem) {
+      if (nestedItem.type == QuestionnaireItemType.group) {
+        nestedItems.add(_fromGroupItem(nestedItem));
+      } else {
+        nestedItems.add(_fromQuestionItem(nestedItem));
+      }
+    });
+    return QuestionnaireResponseItem(linkId: item.linkId, item: nestedItems);
+  }
+
+  QuestionnaireResponseItem _fromQuestionItem(QuestionnaireItem item) {
+    // TODO: Create responseitems from answers...
+    return QuestionnaireResponseItem(linkId: item.linkId);
+  }
+
+  QuestionnaireResponse fhirQuestionnaireResponse(
+      RPTaskResult result, QuestionnaireResponseStatus status) {
+    final questionnaireResponse = QuestionnaireResponse(
+        status: status, item: <QuestionnaireResponseItem>[]);
+
+    _questionnaire.item.forEach((item) {
+      if (item.type == QuestionnaireItemType.group) {
+        questionnaireResponse.item.add(_fromGroupItem(item));
+      } else {
+        questionnaireResponse.item.add(_fromQuestionItem(item));
+      }
+    });
+
+    return questionnaireResponse;
+  }
+
   RPCompletionStep completionStep() {
     return RPCompletionStep('completionID')
       ..title = 'Finished'
       ..text = 'Thank you for filling out the survey!';
   }
 
-  RPOrderedTask surveyTask(String jsonFhirQuestionnaire) {
+  RPOrderedTask surveyTask() {
     return RPOrderedTask(
       'surveyTaskID',
-      [...fhirQuestionnaire(jsonFhirQuestionnaire), completionStep()],
+      [..._rpStepsFromFhirQuestionnaire(), completionStep()],
     );
   }
+
+  RPFhirQuestionnaire(String jsonFhirQuestionnaire)
+      : _questionnaire =
+            Questionnaire.fromJson(json.decode(jsonFhirQuestionnaire));
 }
